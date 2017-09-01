@@ -8,7 +8,7 @@ import (
 	"log"
 )
 
-var db, conn_err = sql.Open("mysql", "")
+var db, conn_err = sql.Open("mysql", "root:imonomy@/visadd_stats")
 
 type BlogPost struct  {
 	text string
@@ -23,15 +23,13 @@ type BlogPost struct  {
 
 func GetBlogPost(id int, channel chan BlogPost){
 	var post BlogPost
-	res, err := db.Query("SELECT id, text, date, title FROM blog WHERE id = ?", id)
+	res, err := db.Prepare("SELECT id, text, date, title FROM blog WHERE id = ?")
 	if err != nil {
 		log.Panicf("Error: %s", err)
 		panic("qeq")
 	}
-	for res.Next() {
-		res.Scan(&post.id, &post.text, &post.date, &post.title)
-	}
-	res.Close()
+	defer res.Close()
+	res.QueryRow(1).Scan(&post.id, &post.text, &post.date, &post.title)
 	//format.Printf("Blog post is: %s", post.text)
 	//format.Printf("Getting blog post by %d id...", id)
 	format.Println("Received request")
