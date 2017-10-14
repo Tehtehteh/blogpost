@@ -1,0 +1,9 @@
+mysql:
+  host: /
+  port:
+  user: root
+  password: imonomy
+  database: last_visadd
+
+general:
+  log_level: info

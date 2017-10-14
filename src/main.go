@@ -1,20 +1,56 @@
 package main
 
 import (
-	format "fmt"
+	"api"
+	"db"
+	"settings"
+	. "logger"
 	"github.com/valyala/fasthttp"
 	"github.com/buaazp/fasthttprouter"
-	"api"
-	"log"
+	"github.com/spf13/viper"
+	"os"
+	"fmt"
 )
 
 func prepareRoutes(router *fasthttprouter.Router){
-	router.GET("/", api.HomepageHanlder)
+	router.GET("/", api.HomepageHandler)
+	router.POST("/b/:buyer_id", api.BuyerHandler)
+	router.POST("/openrtb/", api.BuyerHandler)
+	router.PanicHandler = api.PanicHandler
 }
 
 func main(){
-	go format.Print("Serving...")
+	InitLog()
+	Log.Info("Starting RTB...")
+	var (
+		configPath string
+		connectionString string
+	)
+	if os.Getenv("DEBUG") == "1" {
+		configPath += "config_develop"
+	} else {
+		configPath += "config"
+	}
+	viper.AddConfigPath("D:\\Golangprojects\\blogpost\\src\\config")
+	viper.SetConfigName(configPath)
+	viper.SetConfigType("yaml")
+	err := viper.ReadInConfig()
+
+	if err != nil {
+		Log.Errorf("Error reading configuration file: %s", err)
+		return
+	}
+
+	connectionString = fmt.Sprintf("%s:%s@%s%s", viper.GetString("mysql.user"), viper.GetString("mysql.password"),
+		viper.GetString("mysql.host"), viper.GetString("mysql.database"))
+	err = db.InitializeDB(connectionString)
+	if err != nil {
+		Log.Errorf("Error connecting to database: %s", err)
+		return
+	}
+	settings.ExchangeHandler.Init()
+
 	router := fasthttprouter.New()
 	prepareRoutes(router)
-	log.Fatal(fasthttp.ListenAndServe("192.168.0.106:8090", router.Handler))
+	Log.Info(fasthttp.ListenAndServe(":8090", router.Handler))
 }
