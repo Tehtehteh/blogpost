@@ -1,38 +1,62 @@
 package db
 
 import (
-	format "fmt"
-	"time"
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
 )
 
-var db, conn_err = sql.Open("mysql", "root:imonomy@/visadd_stats")
+var DB *sql.DB
 
-type BlogPost struct  {
-	text string
-	id int
-	date time.Time
-	title string
+
+func InitializeDB(connstring string) (err error) {
+	DB, err = sql.Open("mysql", connstring)
+	if err != nil {
+		return err
+	} else {
+		return nil
+	}
 }
 
-//func makeQuery (query string, args ...interface{}) (*driver.Rows, error){
-//	go db.Query(query, args)
-//}
-
-func GetBlogPost(id int, channel chan BlogPost){
-	var post BlogPost
-	res, err := db.Prepare("SELECT id, text, date, title FROM blog WHERE id = ?")
+func FetchOne (query string, channel chan *sql.Row, args ...interface{}){
+	err := DB.Ping()
 	if err != nil {
-		log.Panicf("Error: %s", err)
-		panic("qeq")
+		log.Panicf("Error pinging database: %s\n", err)
+	}
+	res, err := DB.Prepare(query)
+
+	if err != nil {
+		log.Panicf("Error executing SQL query: %s", err)
+	}
+
+	defer res.Close()
+	defer close(channel)
+
+	channel <- res.QueryRow(args...)
+}
+
+func FetchMany(query string, channel chan *sql.Rows, args ...interface{}){
+	err := DB.Ping()
+	if err != nil {
+		log.Panicf("[Mysql] Erorr: %s", err)
+	}
+	res, err := DB.Prepare(query)
+
+	var rows *sql.Rows
+
+	if err != nil {
+		log.Panicf("[Mysql] Erorr: %s", err)
+	}
+	if len(args) != 0 {  //todo: Check correct way to handle empty args
+		rows, err = res.Query(args)
+	} else {
+		rows, err = res.Query()
+	}
+	if err != nil {
+		log.Panicf("[Mysql] Erorr: %s", err)
 	}
 	defer res.Close()
-	res.QueryRow(1).Scan(&post.id, &post.text, &post.date, &post.title)
-	//format.Printf("Blog post is: %s", post.text)
-	//format.Printf("Getting blog post by %d id...", id)
-	format.Println("Received request")
-	channel <- post
-	close(channel)
+	defer close(channel)
+
+	channel <- rows
 }

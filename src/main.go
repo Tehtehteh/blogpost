@@ -36,6 +36,7 @@ func main(){
 	viper.SetConfigType("yaml")
 	err := viper.ReadInConfig()
 
+	Log.Info("Qwa!")
 	if err != nil {
 		Log.Errorf("Error reading configuration file: %s", err)
 		return
